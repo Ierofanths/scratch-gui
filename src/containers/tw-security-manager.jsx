@@ -29,7 +29,7 @@ const isTrustedExtension = url => (
 
     // For development.
     url.startsWith('http://localhost:8000/') ||
-    url.startsWith('https://Ierofanths.github.io/scratch-wedo/') ||
+    url.startsWith('https://ierofanths.github.io/scratch-wedo/') ||
     extensionsTrustedByUser.has(url)
 );
 
