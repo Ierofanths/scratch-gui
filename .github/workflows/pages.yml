@@ -32,6 +32,12 @@ jobs:
           # The site lives at https://USERNAME.github.io/<repository name>/
           ROOT: /${{ github.event.repository.name }}/
           STATIC_PATH: /${{ github.event.repository.name }}/static
+      # Εγκαταστάσιμη εφαρμογή που δουλεύει χωρίς internet (STEM Education)
+      - run: node .github/scripts/offline.js
+        env:
+          ROOT: /${{ github.event.repository.name }}/
+          VERSION: ${{ github.sha }}
+          OWNER: ${{ github.repository_owner }}
       - run: touch build/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
