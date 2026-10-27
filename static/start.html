@@ -164,8 +164,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var EXT_DIR = location.origin + '/scratch-wedo/';
   var EXTENSIONS = [
     { id: 'microbit', file: 'microbit', color: '#0FBD8C',
-      el: ['micro:bit', 'micro:bit V2 με Bluetooth, Nezha, PlanetX και προσομοιώσεις'],
-      en: ['micro:bit', 'micro:bit V2 over Bluetooth, Nezha, PlanetX and simulations'] },
+      el: ['micro:bit', 'Κουμπιά, αισθητήρες, οθόνη, ήχος και ακροδέκτες του micro:bit V2 (Bluetooth)'],
+      en: ['micro:bit', 'Buttons, sensors, display, sound and pins of the micro:bit V2 (Bluetooth)'] },
+    { id: 'nezha', file: 'nezha', color: '#FF0000', needs: ['microbit'],
+      el: ['Nezha', 'Μοτέρ και servo Nezha, αισθητήρες PlanetX · μαζί με micro:bit'],
+      en: ['Nezha', 'Nezha motors and servos, PlanetX sensors · with micro:bit'] },
+    { id: 'sim', file: 'simulations', color: '#8A4FD8', needs: ['nezha'],
+      el: ['Προσομοιώσεις', 'Sprites που δείχνουν servo, μοτέρ, LED και εικονικοί αισθητήρες · μαζί με Nezha'],
+      en: ['Simulations', 'Sprites showing servos, motors, LEDs, and virtual sensors · with Nezha'] },
     { id: 'wedo', file: 'wedo2', color: '#FF8C1A',
       el: ['WeDo 2.0', 'Μοτέρ, φως και αισθητήρες του hub WeDo 2.0'],
       en: ['WeDo 2.0', 'Motors, light and sensors of the WeDo 2.0 hub'] },
@@ -180,9 +186,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Class dashboard', 'Readings from up to 6 IoT stations in one view'] }
   ];
   var PRESETS = [
-    { icon: '🤖', ext: ['microbit', 'graph'],
-      el: ['micro:bit & ρομποτική', 'Προγραμματισμός micro:bit, Nezha και PlanetX, με προσομοίωση χωρίς υλικό.'],
-      en: ['micro:bit & robotics', 'Program micro:bit, Nezha and PlanetX, with simulation when no hardware is around.'] },
+    { icon: '🔷', ext: ['microbit', 'graph'],
+      el: ['micro:bit', 'Τα blocks του micro:bit με αισθητήρες, οθόνη και ακροδέκτες, και γραφήματα.'],
+      en: ['micro:bit', 'micro:bit blocks for sensors, display and pins, plus graphs.'] },
+    { icon: '🤖', ext: ['microbit', 'nezha', 'sim'],
+      el: ['Ρομποτική Nezha', 'Nezha και PlanetX με το micro:bit, με προσομοίωση όταν δεν υπάρχει υλικό.'],
+      en: ['Nezha robotics', 'Nezha and PlanetX with the micro:bit, with simulation when no hardware is around.'] },
     { icon: '🧱', ext: ['wedo'],
       el: ['WeDo 2.0', 'Κατασκευές WeDo 2.0 με μοτέρ και αισθητήρες, για τις μικρές τάξεις.'],
       en: ['WeDo 2.0', 'WeDo 2.0 builds with motors and sensors, for younger classes.'] },
@@ -221,7 +230,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var lang = store.get('lang') || ((navigator.language || 'el').toLowerCase().indexOf('el') === 0 ? 'el' : 'en');
   var selected = (store.get('last') || '').split(',').filter(Boolean);
 
+  // Προσθέτει ό,τι χρειάζεται μια επέκταση (π.χ. Nezha → micro:bit) και κρατά τη σειρά της λίστας
+  function withNeeds (ids) {
+    var out = ids.slice();
+    var changed = true;
+    while (changed) {
+      changed = false;
+      out.forEach(function (id) {
+        var e = EXTENSIONS.filter(function (x) { return x.id === id; })[0];
+        (e && e.needs || []).forEach(function (n) {
+          if (out.indexOf(n) < 0) { out.push(n); changed = true; }
+        });
+      });
+    }
+    return EXTENSIONS.map(function (x) { return x.id; }).filter(function (id) { return out.indexOf(id) >= 0; });
+  }
+  function dependents (id) {
+    return EXTENSIONS.filter(function (x) { return withNeeds([x.id]).indexOf(id) >= 0 && x.id !== id; })
+      .map(function (x) { return x.id; });
+  }
+
   function editorUrl (ids) {
+    ids = withNeeds(ids);
     var params = ids.map(function (id) {
       var e = EXTENSIONS.filter(function (x) { return x.id === id; })[0];
       return 'extension=' + encodeURIComponent(EXT_DIR + e.file + '-' + (lang === 'el' ? 'gr' : 'en') + '.js');
@@ -236,6 +266,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).join(' + ') || TEXT[lang].none;
   }
   function open (ids) {
+    ids = withNeeds(ids);
     store.set('last', ids.join(','));
     store.set('lang', lang);
     location.href = editorUrl(ids);
@@ -273,9 +304,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var cb = row.querySelector('input');
       cb.checked = selected.indexOf(e.id) >= 0;
       cb.addEventListener('change', function () {
-        selected = EXTENSIONS.map(function (x) { return x.id; }).filter(function (id) {
-          return id === e.id ? cb.checked : selected.indexOf(id) >= 0;
-        });
+        if (cb.checked) {
+          selected = withNeeds(selected.concat([e.id]));            // π.χ. Nezha → και micro:bit
+        } else {
+          var drop = [e.id].concat(dependents(e.id));              // π.χ. χωρίς micro:bit → ούτε Nezha
+          selected = selected.filter(function (id) { return drop.indexOf(id) < 0; });
+        }
+        renderCustom();
         update();
       });
       row.querySelector('.dot').style.background = e.color;
